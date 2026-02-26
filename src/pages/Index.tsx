@@ -1,6 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { SidebarProvider, Sidebar, SidebarTrigger } from "@/components/ui/sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { MessageSquare, GraduationCap, Upload, BookOpen, FileText, Brain, Sparkles, Phone } from "lucide-react";
 import { SubjectManager, type Subject } from "@/components/SubjectManager";
 import { FileUpload } from "@/components/FileUpload";
@@ -21,7 +19,6 @@ import {
 type Tab = "chat" | "study" | "call";
 
 export default function Index() {
-    const isMobile = useIsMobile();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
@@ -45,10 +42,7 @@ export default function Index() {
   }, [activeSubject?.id]);
 
   const createSubject = useCallback(async (name: string) => {
-    if (subjects.length >= 3) {
-      toast.error("Maximum subjects allowed is 3.");
-      return;
-    }
+    if (subjects.length >= 3) return;
     try {
       const newSubject = await apiCreateSubject(name);
       setSubjects((prev) => [...prev, newSubject]);
@@ -180,8 +174,8 @@ export default function Index() {
               className="w-full px-4 py-3 rounded-lg bg-secondary text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-sm"
             />
             <button
-              onClick={() => onboardingName.trim() && subjects.length < 3 && createSubject(onboardingName.trim())}
-              disabled={!onboardingName.trim() || subjects.length >= 3}
+              onClick={() => onboardingName.trim() && createSubject(onboardingName.trim())}
+              disabled={!onboardingName.trim()}
               className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40 hover:opacity-90 transition-opacity"
             >
               Create Subject
@@ -208,112 +202,108 @@ export default function Index() {
 
   // ── Has subjects: normal sidebar + main layout ──
   return (
-    <SidebarProvider>
-      <div className="flex h-screen bg-background overflow-hidden">
-        {/* Hamburger menu for mobile */}
-        {isMobile && (
-          <div className="absolute top-4 left-4 z-50">
-            <SidebarTrigger />
+    <div className="flex h-screen bg-background overflow-hidden">
+      <aside className="w-72 bg-card border-r border-border flex flex-col flex-shrink-0">
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <GraduationCap className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <h1 className="font-display text-lg font-bold text-foreground">AskMyNotes</h1>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+          <SubjectManager
+            subjects={subjects}
+            activeSubject={activeSubject}
+            onSelectSubject={(s) => setActiveSubject(s)}
+            onCreateSubject={createSubject}
+            onDeleteSubject={deleteSubject}
+          />
+        </div>
+
+        {activeSubject && (
+          <div className="p-4 border-t border-border">
+            <FileUpload subjectId={activeSubject.id} subjectName={activeSubject.name} onUpload={handleUpload} />
           </div>
         )}
-        <Sidebar side="left" variant="sidebar" collapsible={isMobile ? "offcanvas" : "none"} className={isMobile ? "fixed top-0 left-0 z-40" : "w-72 flex-shrink-0"}>
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-primary-foreground" />
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0 h-full">
+        <header className="h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center px-4 gap-3 flex-shrink-0">
+          {activeSubject ? (
+            <>
+              <h2 className="font-display font-semibold text-foreground truncate">{activeSubject.name}</h2>
+              <span className="text-xs text-muted-foreground">
+                {activeSubject.documentCount} file{activeSubject.documentCount !== 1 ? "s" : ""}
+              </span>
+              <div className="ml-auto flex items-center gap-1 bg-secondary rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab("chat")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors min-h-[36px] ${
+                    activeTab === "chat" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Chat</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab("study")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors min-h-[36px] ${
+                    activeTab === "study" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Study</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab("call")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors min-h-[36px] ${
+                    activeTab === "call" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Call</span>
+                </button>
               </div>
-              <h1 className="font-display text-lg font-bold text-foreground">AskMyNotes</h1>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-            <SubjectManager
-              subjects={subjects}
-              activeSubject={activeSubject}
-              onSelectSubject={(s) => setActiveSubject(s)}
-              onCreateSubject={createSubject}
-              onDeleteSubject={deleteSubject}
-            />
-          </div>
-          {activeSubject && (
-            <div className="p-4 border-t border-border">
-              <FileUpload subjectId={activeSubject.id} subjectName={activeSubject.name} onUpload={handleUpload} />
-            </div>
+            </>
+          ) : (
+            <h2 className="font-display font-semibold text-muted-foreground">Select a subject</h2>
           )}
-        </Sidebar>
-        <main className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center px-4 gap-3 flex-shrink-0">
-            {activeSubject ? (
-              <>
-                <h2 className="font-display font-semibold text-foreground truncate">{activeSubject.name}</h2>
-                <span className="text-xs text-muted-foreground">
-                  {activeSubject.documentCount} file{activeSubject.documentCount !== 1 ? "s" : ""}
-                </span>
-                <div className="ml-auto flex items-center gap-1 bg-secondary rounded-lg p-1">
-                  <button
-                    onClick={() => setActiveTab("chat")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors min-h-[36px] ${
-                      activeTab === "chat" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Chat</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("study")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors min-h-[36px] ${
-                      activeTab === "study" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Study</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("call")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors min-h-[36px] ${
-                      activeTab === "call" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Call</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <h2 className="font-display font-semibold text-muted-foreground">Select a subject</h2>
-            )}
-          </header>
-          <div className="flex-1 min-h-0">
-            {!activeSubject ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-6 animate-fade-in">
-                <GraduationCap className="w-10 h-10 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Select a subject from the sidebar to begin</p>
-              </div>
-            ) : activeTab === "chat" ? (
-              <ChatInterface
-                subjectName={activeSubject.name}
-                messages={currentMessages}
-                onSend={handleSend}
-                isLoading={isLoading}
-              />
-            ) : activeTab === "call" ? (
-              <VoiceCall
-                subjectId={activeSubject.id}
-                subjectName={activeSubject.name}
-                chatMessages={currentMessages}
-                onClose={() => setActiveTab("chat")}
-              />
-            ) : (
-              <StudyMode
-                subjectName={activeSubject.name}
-                mcqs={currentStudy?.mcqs || []}
-                shortAnswers={currentStudy?.shortAnswers || []}
-                onGenerate={handleGenerateStudy}
-                isGenerating={isGenerating}
-              />
-            )}
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+        </header>
+
+        <div className="flex-1 min-h-0 h-full">
+          {!activeSubject ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-6 animate-fade-in">
+              <GraduationCap className="w-10 h-10 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Select a subject from the sidebar to begin</p>
+            </div>
+          ) : activeTab === "chat" ? (
+            <ChatInterface
+              subjectName={activeSubject.name}
+              messages={currentMessages}
+              onSend={handleSend}
+              isLoading={isLoading}
+            />
+          ) : activeTab === "call" ? (
+            <VoiceCall
+              subjectId={activeSubject.id}
+              subjectName={activeSubject.name}
+              chatMessages={currentMessages}
+              onClose={() => setActiveTab("chat")}
+            />
+          ) : (
+            <StudyMode
+              subjectName={activeSubject.name}
+              mcqs={currentStudy?.mcqs || []}
+              shortAnswers={currentStudy?.shortAnswers || []}
+              onGenerate={handleGenerateStudy}
+              isGenerating={isGenerating}
+            />
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
