@@ -42,46 +42,81 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to download file: ${downloadError?.message}`);
     }
 
+    const arrayBuf = await fileData.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    
     let text = "";
-
+    
     if (filename.endsWith(".txt")) {
       text = await fileData.text();
     } else if (filename.endsWith(".pdf")) {
-      // For PDFs, extract text - basic extraction from raw bytes
-      // We'll use the AI to help extract if needed, but for now do basic text extraction
-      const bytes = new Uint8Array(await fileData.arrayBuffer());
-      const rawText = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-      
-      // Extract text between stream/endstream markers (basic PDF text extraction)
-      const streamMatches = rawText.matchAll(/stream\r?\n([\s\S]*?)endstream/g);
-      const textParts: string[] = [];
-      for (const match of streamMatches) {
-        // Filter to only readable text
-        const cleaned = match[1].replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s+/g, " ").trim();
-        if (cleaned.length > 20) {
-          textParts.push(cleaned);
+      // Use AI to extract text from PDF - sends as base64
+      // Chunked base64 conversion to avoid call stack overflow
+      const chunkSize = 8192;
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const slice = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        for (let j = 0; j < slice.length; j++) {
+          binary += String.fromCharCode(slice[j]);
         }
       }
+      const base64 = btoa(binary);
       
-      if (textParts.length > 0) {
-        text = textParts.join("\n\n");
-      } else {
-        // Fallback: try to get any readable text
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Extract ALL text content from this PDF document. Return ONLY the extracted text, preserving structure, headings, and paragraphs. No commentary.",
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:application/pdf;base64,${base64}` },
+                },
+              ],
+            },
+          ],
+          temperature: 0,
+          max_tokens: 16000,
+        }),
+      });
+
+      if (aiResponse.ok) {
+        const aiData = await aiResponse.json();
+        text = aiData.choices?.[0]?.message?.content || "";
+      }
+      
+      // Fallback if AI extraction failed
+      if (!text || text.trim().length < 10) {
+        const rawText = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
         text = rawText.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, "\n").trim();
-        // Take only meaningful portions
         const lines = text.split("\n").filter(l => l.trim().length > 10);
         text = lines.join("\n");
       }
     }
 
     if (!text || text.trim().length < 10) {
-      // Use AI to describe that we couldn't extract text
       text = `[Document: ${filename} - Text extraction was limited. The document may contain images or complex formatting.]`;
     }
 
     // Chunk the text
     const textChunks = chunkText(text);
     const estimatedPages = Math.max(1, Math.ceil(text.length / 3000));
+
+    // Verify document still exists before inserting chunks
+    const { data: docCheck } = await supabase.from("documents").select("id").eq("id", document_id).single();
+    if (!docCheck) {
+      throw new Error("Document was deleted before processing completed");
+    }
 
     // Insert chunks
     const chunkRows = textChunks.map((content, index) => ({

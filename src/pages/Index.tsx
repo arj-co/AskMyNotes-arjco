@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import { MessageSquare, GraduationCap, Upload, BookOpen, FileText, Brain, Sparkles } from "lucide-react";
+import { MessageSquare, GraduationCap, Upload, BookOpen, FileText, Brain, Sparkles, Phone } from "lucide-react";
 import { SubjectManager, type Subject } from "@/components/SubjectManager";
 import { FileUpload } from "@/components/FileUpload";
 import { ChatInterface, type ChatMessage } from "@/components/ChatInterface";
 import { StudyMode, type MCQ, type ShortAnswer } from "@/components/StudyMode";
+import { VoiceCall } from "@/components/VoiceCall";
 import { toast } from "sonner";
 import {
   fetchSubjects,
@@ -15,7 +16,7 @@ import {
   generateStudyQuestions,
 } from "@/lib/api";
 
-type Tab = "chat" | "study";
+type Tab = "chat" | "study" | "call";
 
 export default function Index() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -65,14 +66,15 @@ export default function Index() {
 
   const handleUpload = useCallback(async (files: File[]) => {
     if (!activeSubject) return;
-    for (const file of files) {
-      try {
-        await uploadFile(activeSubject.id, file);
-      } catch (e: any) {
-        toast.error(`Failed to upload ${file.name}`);
-        console.error(e);
+    const results = await Promise.allSettled(
+      files.map((file) => uploadFile(activeSubject.id, file))
+    );
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        toast.error(`Failed to upload ${files[i].name}`);
+        console.error(r.reason);
       }
-    }
+    });
     const updated = await fetchSubjects();
     setSubjects(updated);
     const refreshed = updated.find((s) => s.id === activeSubject.id);
@@ -99,7 +101,12 @@ export default function Index() {
     setIsLoading(true);
 
     try {
-      const result = await sendMessage(subjectId, content);
+      // Build conversation history from recent messages for multi-turn context
+      const history = (messages[subjectId] || []).slice(-10).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+      const result = await sendMessage(subjectId, content, history);
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -250,6 +257,15 @@ export default function Index() {
                   <GraduationCap className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Study</span>
                 </button>
+                <button
+                  onClick={() => setActiveTab("call")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors min-h-[36px] ${
+                    activeTab === "call" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Call</span>
+                </button>
               </div>
             </>
           ) : (
@@ -269,6 +285,13 @@ export default function Index() {
               messages={currentMessages}
               onSend={handleSend}
               isLoading={isLoading}
+            />
+          ) : activeTab === "call" ? (
+            <VoiceCall
+              subjectId={activeSubject.id}
+              subjectName={activeSubject.name}
+              chatMessages={currentMessages}
+              onClose={() => setActiveTab("chat")}
             />
           ) : (
             <StudyMode

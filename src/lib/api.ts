@@ -79,14 +79,15 @@ export async function uploadFile(subjectId: string, file: File) {
     .update({ document_count: count || 0 })
     .eq("id", subjectId);
 
-  await supabase.functions.invoke("process-document", {
+  // Fire-and-forget: don't await processing so upload returns fast
+  supabase.functions.invoke("process-document", {
     body: {
       document_id: doc.id,
       subject_id: subjectId,
       storage_path: path,
       filename: file.name,
     },
-  });
+  }).catch((e) => console.error("Process document error:", e));
 
   return doc;
 }
@@ -109,13 +110,15 @@ export async function fetchMessages(subjectId: string): Promise<ChatMessage[]> {
   }));
 }
 
-/** Send a chat message and get the full response */
+/** Send a chat message with optional conversation history for multi-turn */
 export async function sendMessage(
   subjectId: string,
   question: string,
+  conversationHistory?: { role: string; content: string }[],
+  mode?: "chat" | "voice_call",
 ): Promise<{ content: string; citations: any[]; evidence: any[]; confidence: string }> {
   const { data, error } = await supabase.functions.invoke("chat", {
-    body: { subject_id: subjectId, question },
+    body: { subject_id: subjectId, question, conversation_history: conversationHistory, mode: mode || "chat" },
   });
 
   if (error) throw new Error(error.message || "Failed to get response");
@@ -127,6 +130,51 @@ export async function sendMessage(
     evidence: data.evidence || [],
     confidence: data.confidence || "Medium",
   };
+}
+
+/** Transcribe audio using ElevenLabs STT */
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("audio", audioBlob, "recording.webm");
+
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-transcribe`,
+    {
+      method: "POST",
+      headers: {
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) throw new Error("Transcription failed");
+  const data = await response.json();
+  if (data.error) throw new Error(data.error);
+  return data.text || "";
+}
+
+/** Generate speech from text using ElevenLabs TTS */
+export async function textToSpeech(text: string): Promise<HTMLAudioElement> {
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ text }),
+    }
+  );
+
+  if (!response.ok) throw new Error("TTS failed");
+  const audioBlob = await response.blob();
+  const audioUrl = URL.createObjectURL(audioBlob);
+  const audio = new Audio(audioUrl);
+  return audio;
 }
 
 export async function fetchDocuments(subjectId: string) {
