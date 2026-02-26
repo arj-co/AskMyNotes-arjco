@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 230 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 12%;
+
+    --primary: 246 65% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 18% 93%;
+    --secondary-foreground: 230 25% 18%;
+
+    --muted: 220 18% 93%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 168 60% 44%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 16% 88%;
+    --input: 220 16% 88%;
+    --ring: 246 65% 56%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 230 25% 18%;
+    --sidebar-primary: 246 65% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 246 65% 96%;
+    --sidebar-accent-foreground: 246 65% 36%;
+    --sidebar-border: 220 16% 90%;
+    --sidebar-ring: 246 65% 56%;
+
+    /* Custom tokens */
+    --subject-1: 246 65% 56%;
+    --subject-2: 168 60% 44%;
+    --subject-3: 32 90% 55%;
+    --chat-user: 246 65% 96%;
+    --chat-ai: 0 0% 100%;
+    --success: 152 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 230 25% 8%;
+    --foreground: 220 20% 95%;
+
+    --card: 230 22% 12%;
+    --card-foreground: 220 20% 95%;
+
+    --popover: 230 22% 12%;
+    --popover-foreground: 220 20% 95%;
+
+    --primary: 246 70% 64%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 230 18% 18%;
+    --secondary-foreground: 220 20% 90%;
+
+    --muted: 230 18% 18%;
+    --muted-foreground: 220 12% 60%;
+
+    --accent: 168 55% 48%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 230 18% 20%;
+    --input: 230 18% 20%;
+    --ring: 246 70% 64%;
+
+    --sidebar-background: 230 22% 10%;
+    --sidebar-foreground: 220 20% 90%;
+    --sidebar-primary: 246 70% 64%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 246 50% 18%;
+    --sidebar-accent-foreground: 246 70% 80%;
+    --sidebar-border: 230 18% 18%;
+    --sidebar-ring: 246 70% 64%;
+
+    --subject-1: 246 70% 64%;
+    --subject-2: 168 55% 48%;
+    --subject-3: 32 85% 58%;
+    --chat-user: 246 50% 18%;
+    --chat-ai: 230 22% 14%;
+    --success: 152 55% 46%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 88% 52%;
+    --warning-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .heading-display {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    @apply font-bold tracking-tight;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+}
